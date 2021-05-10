@@ -1,27 +1,5 @@
 # NFT 交易所 Demo
 
-## 前置条件
-
-1. 开发需要安装node.js环境，可直接在[Node.js官网](https://nodejs.org/en/)下载安装最新LTS版本即可
-2. npm在国内网络环境下下载速度较慢，建议使用[淘宝NPM镜像](http://npm.taobao.org/)，
-安装完成npm后，执行 `npm install -g cnpm --registry=https://registry.npm.taobao.org` 即可
-
-## 编译步骤
-
-``` bash
-# 安装项目所需依赖
-cnpm install
-
-# 由于公司网络限制，需单独安装 vue-echarts-v3 依赖
-cnpm install vue-echarts-v3@1.0.5
-
-# 启动服务
-npm run dev
-
-# 项目编译打包
-npm run build
-```
-
 ## opensea的概念理解
 1. opensea支持的收藏品类：艺术品、域名、虚拟世界、交易卡、运动相关等
 2. 用户首次登录时连接钱包（MetaMask），根据钱包地址创建账户
@@ -49,3 +27,27 @@ npm run build
 - [ ] 在大厅中展示所有已发布的收藏品，根据元数据json进行内容的展示
 - [ ] 任何账户都可以购买非自己的NFT，并与合约进行交互记录
 - [ ] 基于火币测试链实现以上功能，完全通过js实现
+
+## Project setup
+```
+npm install
+```
+
+### Compiles and hot-reloads for development
+```
+npm run serve
+```
+
+### Compiles and minifies for production
+```
+npm run build
+```
+
+### Lints and fixes files
+```
+npm run lint
+```
+
+### Customize configuration
+See [Configuration Reference](https://cli.vuejs.org/config/).
+
