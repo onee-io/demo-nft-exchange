@@ -20,11 +20,12 @@
                 <div class="collection-card-wrapper">
                     <div v-for="data in collectionList" :key="data.name" class="collection-card">
                         <Card>
-                            <!-- <p slot="title">{{data.name}}</p> -->
+                            <p slot="title">{{data.name}}</p>
+                            <p slot="extra">#{{data.tokenId}}</p>
                             <img :src="data.image" class="collection-card-image">
-                            <h3>{{data.name}}#{{data.tokenId}}</h3>
+                            <!-- <h3>{{data.name}}#{{data.tokenId}}</h3> -->
                             <!-- <p>链接：{{data.external_url}}</p> -->
-                            <!-- <p>描述：{{data.description}}</p> -->
+                            <p>描述：{{data.description}}</p>
                         </Card>
                     </div>
                 </div>
