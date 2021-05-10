@@ -5,12 +5,17 @@ pragma solidity >=0.4.22 <0.9.0;
 contract Exchange {
 
     // 出售中的商品列表
-    string[] public goodsList;
+    uint[] public tokenIds;
+
+    // 获取所有出售中的NFT
+    function getAllTokenId() external view returns (uint[] memory) {
+        return tokenIds;
+    }
 
     // 上架商品
-    function putOnGoods(string memory tokenURI) public returns (string memory) {
+    function putOnNFT(uint tokenId) public returns (uint) {
         // require 操作者应为nft的所有者 TODO
-        goodsList.push(tokenURI);
-        return tokenURI;
+        tokenIds.push(tokenId);
+        return tokenId;
     }
 }

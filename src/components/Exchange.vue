@@ -17,7 +17,17 @@
             </Header>
 
             <Content>
-
+                <div class="collection-card-wrapper">
+                    <div v-for="data in collectionList" :key="data.name" class="collection-card">
+                        <Card>
+                            <!-- <p slot="title">{{data.name}}</p> -->
+                            <img :src="data.image" class="collection-card-image">
+                            <h3>{{data.name}}#{{data.tokenId}}</h3>
+                            <!-- <p>链接：{{data.external_url}}</p> -->
+                            <!-- <p>描述：{{data.description}}</p> -->
+                        </Card>
+                    </div>
+                </div>
             </Content>
 
             <Footer class="layout-footer-center">&copy; 2021 北京球秘科技有限公司</Footer>
@@ -66,6 +76,8 @@ export default {
             isOwner: false, 
             // 上传收藏品表单
             uploadModal: false,
+            // 收藏品列表
+            collectionList: [],
             // 收藏品数据
             collectionData: {},
             collectionDataRule: {
@@ -85,7 +97,7 @@ export default {
         // 连接钱包
         await this.linkWallet();
         // 加载全部收藏品
-        this.loadAllCollection();
+        await this.loadAllCollection();
     },
 
     methods: {
@@ -97,7 +109,7 @@ export default {
                 external_url: null,
                 description: null,
                 image: null
-            }   
+            }
         },
 
         // 初始化IPFS客户端
@@ -131,9 +143,18 @@ export default {
         },
 
         // 加载全部收藏品
-        loadAllCollection () {
+        async loadAllCollection () {
             // TODO 与交易所合约交互
-            console.log('加载全部收藏品');
+            let tokenIds = await this.exchangeInstance.getAllTokenId({from: this.account});
+            this.collectionList = [];
+            tokenIds.forEach(async tokenId => {
+                let tokenURI = await this.nftInstance.tokenURI(tokenId, {from: this.account});
+                let result = await this.$http.get(tokenURI);
+                let metaData = result.data;
+                metaData['tokenId'] = tokenId;
+                console.log(metaData);
+                this.collectionList.push(metaData);
+            });
         },
 
         // 显示上传收藏品模态框
@@ -145,10 +166,6 @@ export default {
         closeUploadModal() {
             this.uploadModal = false;
             this.cleanCollectionData();
-        },
-
-        loadTextFromFile(ev) {
-            console.log(ev);
         },
 
         // 上传图片
@@ -175,7 +192,6 @@ export default {
         // 上传收藏品
         async uploadCollection() {
             this.showSpin('创建中，请稍候...');
-            console.log(this.collectionData);
             const options = {
                 pinataMetadata: {
                     name: this.collectionData.name + '.json'
@@ -187,9 +203,11 @@ export default {
                 let tokenURI = global.IPFS_HOST + uploadResult.IpfsHash;
                 // 合约交互 铸造NFT
                 let mintResult = await this.nftInstance.awardItem(this.account, tokenURI, { from: this.account });
-                console.log('mintResult', mintResult);
-                let uri = await this.nftInstance.tokenURI(mintResult.receipt, { from: this.account });
-                console.log('uri', uri);
+                console.log('mintResult', mintResult.receipt.logs[0].args.tokenId);
+                // 合约交互 上架NFT
+                let tokenId = await this.exchangeInstance.putOnNFT(mintResult.receipt.logs[0].args.tokenId, {from: this.account});
+                console.log('tokenId', tokenId);
+                this.loadAllCollection();
                 this.closeSpin();
                 this.$Message.success('上传成功');
             } catch (error) {
@@ -255,6 +273,21 @@ export default {
 }
 .collection-image {
     width: 50%;
+    margin-bottom: 20px;
+    border-radius: 10px;
+    border: 1px solid #eee;
+}
+.collection-card-wrapper {
+    display: flex;
+    flex-wrap: wrap;
+    width: 100%;
+}
+.collection-card {
+    flex: 0 0 240px;
+    margin: 20px auto;
+}
+.collection-card-image {
+    width: 100%;
     margin-bottom: 20px;
     border-radius: 10px;
     border: 1px solid #eee;
