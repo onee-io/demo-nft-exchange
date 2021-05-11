@@ -26,7 +26,7 @@
                             <p v-if="data.description">描述：{{data.description}}</p>
                             <p>价格：{{data.price ? data.price : 0}}&nbsp;Ether</p>
                             <Button v-if="data.isOwner" type="info" long @click="showPresentModal(data.tokenId)">赠送</Button>
-                            <Button v-if="!data.isOwner" type="success" long>购买</Button>
+                            <Button v-if="!data.isOwner" type="success" long @click="purchaseCollection(data.tokenId)">购买</Button>
                         </Card>
                     </div>
                     <div v-for="i in 8" :key="i" class="collection-card-empty" style="visibility: hidden"></div><!-- 空占位块 -->
@@ -94,6 +94,7 @@ export default {
             isOwner: false, 
             // 收藏品列表
             collectionList: [],
+            collectionPriceMap: {},
             // 上传收藏品
             uploadModal: false,
             collectionData: {
@@ -168,6 +169,8 @@ export default {
                 metaData['isOwner'] = this.account == ownerAddress;
                 console.log(metaData);
                 this.collectionList.push(metaData);
+                this.collectionPriceMap[tokenId] = metaData.price;
+                console.log(this.collectionPriceMap);
             });
         },
 
@@ -230,10 +233,15 @@ export default {
                 let tokenURI = global.IPFS_HOST + uploadResult.IpfsHash;
                 // 合约交互 铸造NFT
                 let mintResult = await this.nftInstance.awardItem(this.account, tokenURI, { from: this.account });
-                console.log('mintResult', mintResult.receipt.logs[0].args.tokenId);
-                // 合约交互 上架NFT
-                let tokenId = await this.exchangeInstance.putOnNFT(mintResult.receipt.logs[0].args.tokenId, {from: this.account});
+                let tokenId = mintResult.receipt.logs[0].args.tokenId;
+                console.log('mintResult', mintResult);
                 console.log('tokenId', tokenId);
+                // 合约交互 授权交易所账号可操作此NFT
+                let approveResult = await this.nftInstance.approve(global.MANAGER_ADDRESS, tokenId, {from: this.account});
+                console.log('approveResult', approveResult);
+                // 合约交互 上架NFT
+                let putResult = await this.exchangeInstance.putOnNFT(tokenId, {from: this.account});
+                console.log('putResult', putResult);
                 this.closeUploadModal();
                 this.loadAllCollection();
                 this.$Message.success('创建成功');
@@ -294,6 +302,27 @@ export default {
             this.presentData = {
                 tokenId: null,
                 address: null
+            }
+        },
+
+        // 购买收藏品
+        async purchaseCollection(tokenId) {
+            console.log(tokenId);
+            this.showSpin('交易中，请稍候...');
+            try {
+                let result = await this.web3.eth.sendTransaction({
+                    from: this.account,
+                    to: this.exchangeInstance.address,
+                    value: this.web3.utils.toWei(this.collectionPriceMap[tokenId])
+                });
+                console.log('支付结果', result);
+                // TODO 通知服务端转账成功 发起NFT所有权转移
+                this.closeSpin();
+                this.$Message.success('交易成功');
+            } catch (error) {
+                console.log(error);
+                this.closeSpin();
+                this.$Message.error('交易失败');
             }
         },
 
@@ -360,13 +389,10 @@ export default {
     display: flex;
     flex-wrap: wrap;
     width: 100%;
-    /* width: 100%; */
     height: auto;
-    /* display: flex; */
     display: -webkit-flex;
     justify-content: space-between;
     flex-direction: row;
-    /* flex-wrap: wrap; */
 }
 .collection-card {
     flex: 0 0 240px;
@@ -379,7 +405,6 @@ export default {
 }
 .collection-card-image {
     width: 100%;
-    margin-bottom: 20px;
     border-radius: 10px;
     border: 1px solid #eee;
 }

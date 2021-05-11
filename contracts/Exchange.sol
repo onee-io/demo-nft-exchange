@@ -18,4 +18,7 @@ contract Exchange {
         tokenIds.push(tokenId);
         return tokenId;
     }
+
+    fallback() external payable {
+    }
 }
