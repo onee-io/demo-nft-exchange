@@ -1,4 +1,4 @@
-global.SERVER_HOST = "http://127.0.0.1:8736"
+global.SERVER_HOST = "https://sideline.onee.top"
 
 // IPFS 配置
 global.IPFS_API_KEY = "61231d5e00873e81882e";

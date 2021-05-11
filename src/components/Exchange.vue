@@ -38,7 +38,7 @@
 
         <!-- 上传收藏品模态框 -->
         <Modal v-model="uploadModal" title="创建收藏品" @on-cancel="closeUploadModal">
-            <Upload v-if="!collectionData.image" type="drag" :before-upload="uploadImage" action="http://127.0.0.1:8736/ipfs/pinFile">
+            <Upload v-if="!collectionData.image" type="drag" :before-upload="uploadImage" action="https://sideline.onee.top/ipfs/pinFile">
                 <div style="padding: 20px 0">
                     <Icon type="ios-cloud-upload" size="52" style="color: #3399ff"></Icon>
                     <p>点击上传收藏品图片</p>
@@ -247,7 +247,7 @@ export default {
                 let approveResult = await this.nftInstance.approve(global.MANAGER_ADDRESS, tokenId, {from: this.account});
                 console.log('approveResult', approveResult);
                 // 合约交互 上架NFT（TODO 此步骤可通过后端管理员账号发起）
-                let putResult = await this.exchangeInstance.putOnNFT(tokenId, {from: this.account});
+                let putResult = await this.exchangeInstance.putOnNFT(tokenId, this.web3.utils.toWei(this.collectionData.price), {from: this.account});
                 console.log('putResult', putResult);
                 this.closeUploadModal();
                 this.loadAllCollection();
