@@ -23,18 +23,21 @@
                             <p slot="title">{{data.name}}</p>
                             <p slot="extra">#{{data.tokenId}}</p>
                             <img :src="data.image" class="collection-card-image">
-                            <!-- <h3>{{data.name}}#{{data.tokenId}}</h3> -->
-                            <!-- <p>链接：{{data.external_url}}</p> -->
-                            <p>描述：{{data.description}}</p>
+                            <p v-if="data.description">描述：{{data.description}}</p>
+                            <p>价格：{{data.price ? data.price : 0}}&nbsp;Ether</p>
+                            <Button v-if="data.isOwner" type="info" long @click="showPresentModal(data.tokenId)">赠送</Button>
+                            <Button v-if="!data.isOwner" type="success" long>购买</Button>
                         </Card>
                     </div>
+                    <div v-for="i in 8" :key="i" class="collection-card-empty" style="visibility: hidden"></div><!-- 空占位块 -->
                 </div>
             </Content>
 
             <Footer class="layout-footer-center">&copy; 2021 北京球秘科技有限公司</Footer>
         </Layout>
 
-        <Modal v-model="uploadModal" title="上传收藏品" @on-ok="uploadCollection" @on-cancel="closeUploadModal" ok-text="上传">
+        <!-- 上传收藏品模态框 -->
+        <Modal v-model="uploadModal" title="创建收藏品" @on-cancel="closeUploadModal">
             <Upload v-if="!collectionData.image" type="drag" :before-upload="uploadImage" action="https://api.pinata.cloud/pinning/pinFileToIPFS">
                 <div style="padding: 20px 0">
                     <Icon type="ios-cloud-upload" size="52" style="color: #3399ff"></Icon>
@@ -44,17 +47,32 @@
             <div v-if="collectionData.image" style="text-align:center">
                 <img :src="collectionData.image" class="collection-image">
             </div>
-            <Form ref="collectionData" :model="collectionData" :rules="collectionDataRule" :label-width="60">
+            <Form ref="collectionData" :model="collectionData" :label-width="60">
                 <FormItem label="名称" prop="name">
                     <Input type="text" v-model="collectionData.name" placeholder="请输入收藏品名称"></Input>
-                </FormItem>
-                <FormItem label="链接" prop="external_url">
-                    <Input type="url" v-model="collectionData.external_url" placeholder="请输入收藏品链接（可选）"></Input>
                 </FormItem>
                 <FormItem label="描述" prop="description">
                     <Input type="textarea" v-model="collectionData.description" placeholder="请输入收藏品描述（可选）"></Input>
                 </FormItem>
+                <FormItem label="价格" prop="price">
+                    <Input type="number" v-model="collectionData.price" placeholder="请输入收藏品价格"  style="width: auto"></Input>&nbsp;Ether
+                </FormItem>
             </Form>
+            <div slot="footer">
+                <Button type="success" size="large" long @click="uploadCollection">创建收藏品</Button>
+            </div>
+        </Modal>
+
+        <!-- 赠送收藏品模态框 -->
+        <Modal v-model="presentModal" title="赠送收藏品" @on-ok="presentCollection" @on-cancel="closePresentModal" ok-text="赠送">
+            <Form ref="presentData" :model="presentData" :label-width="80">
+                <FormItem label="接收地址" prop="address">
+                    <Input type="text" v-model="presentData.address" placeholder="请输入收藏品接收地址"></Input>
+                </FormItem>
+            </Form>
+            <div slot="footer">
+                <Button type="info" size="large" long @click="presentCollection">赠送收藏品</Button>
+            </div>
         </Modal>
     </div>
 </template>
@@ -65,7 +83,6 @@ import contract from 'truffle-contract';
 import nft from '../../build/contracts/DemoNFT.json';
 import exchange from '../../build/contracts/Exchange.json';
 import pinataSDK from '@pinata/sdk';
-// import fs from 'fs';
 
 export default {
     name: "Exchange",
@@ -75,24 +92,27 @@ export default {
             account: null,
             // 合约持有者，可以提取合约中资金
             isOwner: false, 
-            // 上传收藏品表单
-            uploadModal: false,
             // 收藏品列表
             collectionList: [],
-            // 收藏品数据
-            collectionData: {},
-            collectionDataRule: {
-                // name: [
-                //     { required: true, message: '收藏品名称不可为空', trigger: 'blur' }
-                // ]
+            // 上传收藏品
+            uploadModal: false,
+            collectionData: {
+                image: null,
+                name: null,
+                description: null,
+                price: null
+            },
+            // 赠送收藏品
+            presentModal: false,
+            presentData: {
+                tokenId: null,
+                address: null
             }
         }
     },
 
     // 初始化Hook函数
     async created () {
-        // 清空收藏品表单
-        this.cleanCollectionData();
         // 初始化IPFS客户端
         this.initIpfsClient();
         // 连接钱包
@@ -102,16 +122,6 @@ export default {
     },
 
     methods: {
-
-        // 清空收藏品数据
-        cleanCollectionData() {
-            this.collectionData =  {
-                name: null,
-                external_url: null,
-                description: null,
-                image: null
-            }
-        },
 
         // 初始化IPFS客户端
         initIpfsClient () {
@@ -153,6 +163,9 @@ export default {
                 let result = await this.$http.get(tokenURI);
                 let metaData = result.data;
                 metaData['tokenId'] = tokenId;
+                metaData['tokenURI'] = tokenURI;
+                let ownerAddress = await this.nftInstance.ownerOf(tokenId, {from: this.account});
+                metaData['isOwner'] = this.account == ownerAddress;
                 console.log(metaData);
                 this.collectionList.push(metaData);
             });
@@ -167,6 +180,7 @@ export default {
         closeUploadModal() {
             this.uploadModal = false;
             this.cleanCollectionData();
+            this.closeSpin();
         },
 
         // 上传图片
@@ -192,6 +206,18 @@ export default {
 
         // 上传收藏品
         async uploadCollection() {
+            if (this.collectionData.image == null) {
+                this.$Message.error("请上传收藏品图片");
+                return;
+            }
+            if (this.collectionData.name == null) {
+                this.$Message.error("请输入收藏品名称");
+                return;
+            }
+            if (this.collectionData.price == null) {
+                this.$Message.error("请设定收藏品价格");
+                return;
+            }
             this.showSpin('创建中，请稍候...');
             const options = {
                 pinataMetadata: {
@@ -208,14 +234,66 @@ export default {
                 // 合约交互 上架NFT
                 let tokenId = await this.exchangeInstance.putOnNFT(mintResult.receipt.logs[0].args.tokenId, {from: this.account});
                 console.log('tokenId', tokenId);
+                this.closeUploadModal();
                 this.loadAllCollection();
-                this.closeSpin();
-                this.$Message.success('上传成功');
+                this.$Message.success('创建成功');
             } catch (error) {
-                this.cleanCollectionData();
                 console.log(error);
-                this.closeSpin();
-                this.$Message.error('上传失败');
+                this.closeUploadModal();
+                this.loadAllCollection();
+                this.$Message.error('创建失败');
+            }
+        },
+
+        // 清空收藏品数据
+        cleanCollectionData() {
+            this.collectionData =  {
+                image: null,
+                name: null,
+                description: null,
+                price: null
+            }
+        },
+
+        // 显示赠送收藏品模态框
+        showPresentModal(tokenId) {
+            this.presentData.tokenId = tokenId;
+            this.presentModal = true;
+        },
+
+        // 关闭赠送收藏品模态框
+        closePresentModal() {
+            this.presentModal = false;
+            this.cleanPresentData();
+            this.closeSpin();
+        },
+
+        // 赠送收藏品
+        async presentCollection() {
+            if (this.presentData.address == null) {
+                this.$Message.error("请填写接收地址");
+                return;
+            }
+            this.showSpin('交易中，请稍候...');
+            try {
+                let result = await this.nftInstance.safeTransferFrom(this.account, this.presentData.address, this.presentData.tokenId, {from: this.account});
+                console.log(result);
+                this.closePresentModal();
+                this.loadAllCollection();
+                this.$Message.success('赠送成功');
+            } catch (error) {
+                console.log(error);
+                this.closePresentModal();
+                this.loadAllCollection();
+                this.$Message.error('赠送失败');
+            }
+        },
+
+        // 清空赠送数据
+        cleanPresentData() {
+            this.presentData = {
+                tokenId: null,
+                address: null
             }
         },
 
@@ -282,10 +360,22 @@ export default {
     display: flex;
     flex-wrap: wrap;
     width: 100%;
+    /* width: 100%; */
+    height: auto;
+    /* display: flex; */
+    display: -webkit-flex;
+    justify-content: space-between;
+    flex-direction: row;
+    /* flex-wrap: wrap; */
 }
 .collection-card {
     flex: 0 0 240px;
     margin: 20px auto;
+}
+.collection-card-empty {
+    flex: 0 0 240px;
+    margin: 20px auto;
+    height: 0px;
 }
 .collection-card-image {
     width: 100%;
