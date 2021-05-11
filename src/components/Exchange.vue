@@ -38,7 +38,7 @@
 
         <!-- 上传收藏品模态框 -->
         <Modal v-model="uploadModal" title="创建收藏品" @on-cancel="closeUploadModal">
-            <Upload v-if="!collectionData.image" type="drag" :before-upload="uploadImage" action="https://api.pinata.cloud/pinning/pinFileToIPFS">
+            <Upload v-if="!collectionData.image" type="drag" :before-upload="uploadImage" action="http://127.0.0.1:8736/ipfs/pinFile">
                 <div style="padding: 20px 0">
                     <Icon type="ios-cloud-upload" size="52" style="color: #3399ff"></Icon>
                     <p>点击上传收藏品图片</p>
@@ -156,7 +156,7 @@ export default {
 
         // 加载全部收藏品
         async loadAllCollection () {
-            // TODO 与交易所合约交互
+            // 与交易所合约交互
             let tokenIds = await this.exchangeInstance.getAllTokenId({from: this.account});
             this.collectionList = [];
             tokenIds.forEach(async tokenId => {
@@ -187,24 +187,31 @@ export default {
         },
 
         // 上传图片
-        uploadImage(file) {
-            console.log(file);
-            // var fs = require('fs');
-            // console.log('fs', fs);
-            // var readableStreamForFile = fs.createReadStream('../assets/logo.png');
-            // var options = {
-            //     pinataMetadata: {
-            //         name: file.name
-            //     }
-            // };
-            // this.pinata.pinFileToIPFS(file, options).then((result) => {
-            //     console.log(result);
-            // }).catch((err) => {
-            //     console.log(err);
-            // });
-            // TODO 上传图片到IPFS 此处为临时演示写死
-            this.collectionData.image = global.IPFS_HOST + "QmZZeMZJsLHPMcwPP3gMZkBXQtaiscSJjfeL6CR3WD5Zh1";
-            return false;
+        async uploadImage(file) {
+            this.showSpin('上传中，请稍候...');
+            let param = new FormData();
+            param.append('file', file);
+            try {
+                let result = await this.$http({
+                    baseURL: global.SERVER_HOST,
+                    method: 'POST',
+                    url: '/ipfs/pinFile',
+                    headers: {'Content-Type':'multipart/form-data'},
+                    data: param
+                });
+                console.log(result);
+                this.closeSpin();
+                if (result.data != null) {
+                    this.collectionData.image = result.data;
+                } else {
+                    this.$Message.error('上传失败，请稍后再试');
+                    return false;
+                }
+            } catch (error) {
+                this.closeSpin();
+                this.$Message.error('上传失败，请稍后再试');
+                return false;
+            }
         },
 
         // 上传收藏品
@@ -231,7 +238,7 @@ export default {
                 let uploadResult = await this.pinata.pinJSONToIPFS(this.collectionData, options);
                 console.log('uploadResult', uploadResult);
                 let tokenURI = global.IPFS_HOST + uploadResult.IpfsHash;
-                // 合约交互 铸造NFT
+                // 合约交互 铸造NFT（TODO 此步骤可通过后端管理员账号发起）
                 let mintResult = await this.nftInstance.awardItem(this.account, tokenURI, { from: this.account });
                 let tokenId = mintResult.receipt.logs[0].args.tokenId;
                 console.log('mintResult', mintResult);
@@ -239,7 +246,7 @@ export default {
                 // 合约交互 授权交易所账号可操作此NFT
                 let approveResult = await this.nftInstance.approve(global.MANAGER_ADDRESS, tokenId, {from: this.account});
                 console.log('approveResult', approveResult);
-                // 合约交互 上架NFT
+                // 合约交互 上架NFT（TODO 此步骤可通过后端管理员账号发起）
                 let putResult = await this.exchangeInstance.putOnNFT(tokenId, {from: this.account});
                 console.log('putResult', putResult);
                 this.closeUploadModal();
