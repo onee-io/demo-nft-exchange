@@ -21,7 +21,7 @@
                     <div v-for="data in collectionList" :key="data.name" class="collection-card">
                         <Card>
                             <p slot="title">{{data.name}}</p>
-                            <p slot="extra">#{{data.tokenId}}</p>
+                            <a slot="extra" :href="data.tokenURI" target="_blank">#{{data.tokenId}}</a>
                             <img :src="data.image" class="collection-card-image">
                             <p v-if="data.description">描述：{{data.description}}</p>
                             <p>价格：{{data.price ? data.price : 0}}&nbsp;Ether</p>
