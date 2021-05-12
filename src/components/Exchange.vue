@@ -158,6 +158,7 @@ export default {
         async loadAllCollection () {
             // 与交易所合约交互
             let tokenIds = await this.exchangeInstance.getAllTokenId({from: this.account});
+            console.log("加载全部NFT", tokenIds);
             this.collectionList = [];
             tokenIds.forEach(async tokenId => {
                 let tokenURI = await this.nftInstance.tokenURI(tokenId, {from: this.account});
@@ -167,10 +168,9 @@ export default {
                 metaData['tokenURI'] = tokenURI;
                 let ownerAddress = await this.nftInstance.ownerOf(tokenId, {from: this.account});
                 metaData['isOwner'] = this.account == ownerAddress;
-                console.log(metaData);
+                console.log("加载NFT数据", metaData);
                 this.collectionList.push(metaData);
                 this.collectionPriceMap[tokenId] = metaData.price;
-                console.log(this.collectionPriceMap);
             });
         },
 
@@ -199,7 +199,7 @@ export default {
                     headers: {'Content-Type':'multipart/form-data'},
                     data: param
                 });
-                console.log(result);
+                console.log("上传资源到IPFS网络", result);
                 this.closeSpin();
                 if (result.data != null) {
                     this.collectionData.image = result.data;
@@ -236,19 +236,19 @@ export default {
             };
             try {
                 let uploadResult = await this.pinata.pinJSONToIPFS(this.collectionData, options);
-                console.log('uploadResult', uploadResult);
+                console.log('上传元数据文件IPFS网络', uploadResult);
                 let tokenURI = global.IPFS_HOST + uploadResult.IpfsHash;
                 // 合约交互 铸造NFT（TODO 此步骤可通过后端管理员账号发起）
                 let mintResult = await this.nftInstance.awardItem(this.account, tokenURI, { from: this.account });
                 let tokenId = mintResult.receipt.logs[0].args.tokenId;
-                console.log('mintResult', mintResult);
-                console.log('tokenId', tokenId);
+                console.log('铸造NFT', mintResult);
+                console.log('NFT tokenId', tokenId);
                 // 合约交互 授权交易所账号可操作此NFT
                 let approveResult = await this.nftInstance.approve(global.MANAGER_ADDRESS, tokenId, {from: this.account});
-                console.log('approveResult', approveResult);
+                console.log('授权交易所账号可操作此NFT', approveResult);
                 // 合约交互 上架NFT（TODO 此步骤可通过后端管理员账号发起）
                 let putResult = await this.exchangeInstance.putOnNFT(tokenId, this.web3.utils.toWei(this.collectionData.price), {from: this.account});
-                console.log('putResult', putResult);
+                console.log('NFT上架交易所', putResult);
                 this.closeUploadModal();
                 this.loadAllCollection();
                 this.$Message.success('创建成功');
@@ -292,7 +292,7 @@ export default {
             this.showSpin('交易中，请稍候...');
             try {
                 let result = await this.nftInstance.safeTransferFrom(this.account, this.presentData.address, this.presentData.tokenId, {from: this.account});
-                console.log(result);
+                console.log('NFT资产转移', result);
                 this.closePresentModal();
                 this.loadAllCollection();
                 this.$Message.success('赠送成功');
