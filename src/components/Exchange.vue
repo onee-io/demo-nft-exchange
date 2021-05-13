@@ -314,7 +314,6 @@ export default {
 
         // 购买收藏品
         async purchaseCollection(tokenId) {
-            console.log(tokenId);
             this.showSpin('交易中，请稍候...');
             try {
                 let result = await this.web3.eth.sendTransaction({
